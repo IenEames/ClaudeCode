@@ -1,0 +1,468 @@
+/* ==================== SPOTIFY-STYLE THEME ==================== */
+:root {
+  --bg:             #121212;
+  --bg-elevated:    #282828;
+  --bg-highlight:   #3e3e3e;
+  --accent:         #1db954;
+  --accent-hover:   #1ed760;
+  --text-primary:   #ffffff;
+  --text-secondary: #b3b3b3;
+  --text-subdued:   #535353;
+  --danger:         #e22134;
+  --danger-light:   #f15e6c;
+  --border:         rgba(255, 255, 255, 0.1);
+  --radius:         8px;
+  --transition:     0.15s ease;
+}
+
+/* ==================== RESET & BASE ==================== */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text-primary);
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  min-height: 100vh;
+  line-height: 1.5;
+}
+
+.hidden { display: none !important; }
+
+/* ==================== LAYOUT ==================== */
+#app {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 1.5rem 1.5rem 4rem;
+}
+
+/* ==================== HEADER ==================== */
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem 0 2rem;
+}
+
+.header-date {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+/* ==================== PAGE TITLE ==================== */
+.page-title {
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin-bottom: 2rem;
+}
+
+/* ==================== BUTTONS ==================== */
+.btn-primary {
+  padding: 0.6rem 1.5rem;
+  background: var(--accent);
+  border: none;
+  border-radius: 500px;
+  color: #000;
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 700;
+  cursor: pointer;
+  letter-spacing: 0.04em;
+  transition: all var(--transition);
+  white-space: nowrap;
+}
+
+.btn-primary:hover  { background: var(--accent-hover); transform: scale(1.02); }
+.btn-primary:active { transform: scale(0.98); }
+
+.btn-ghost {
+  padding: 0.55rem 1.25rem;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color var(--transition);
+}
+
+.btn-ghost:hover { color: var(--text-primary); }
+
+.btn-add-exercise {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  width: 100%;
+  padding: 0.6rem 1rem;
+  background: transparent;
+  border: 1px dashed rgba(255, 255, 255, 0.2);
+  border-radius: var(--radius);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all var(--transition);
+  margin-top: 0.75rem;
+}
+
+.btn-add-exercise:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.btn-remove-ex {
+  background: none;
+  border: none;
+  color: var(--text-subdued);
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 0.2rem 0.4rem;
+  border-radius: 4px;
+  line-height: 1;
+  transition: color var(--transition);
+  flex-shrink: 0;
+}
+
+.btn-remove-ex:hover { color: var(--danger-light); }
+
+/* ==================== WORKOUT HISTORY ==================== */
+.date-header {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  padding: 1.75rem 0 0.6rem;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 0.25rem;
+}
+
+.date-header:first-child { padding-top: 0; }
+
+.exercise-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.8rem 0.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+  transition: background var(--transition);
+}
+
+.exercise-row:hover { background: rgba(255, 255, 255, 0.04); }
+
+.ex-name {
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.ex-detail {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+  margin-left: 1rem;
+}
+
+.empty-state {
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  text-align: center;
+  padding: 4rem 0;
+}
+
+/* ==================== MODAL ==================== */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 1rem;
+  backdrop-filter: blur(4px);
+}
+
+.modal-dialog {
+  background: var(--bg-elevated);
+  border-radius: 12px;
+  width: 100%;
+  max-width: 500px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 8px 48px rgba(0, 0, 0, 0.7);
+  overflow: hidden;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem 1.5rem 1rem;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.modal-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.btn-icon-close {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  line-height: 1;
+  transition: color var(--transition);
+}
+
+.btn-icon-close:hover { color: var(--text-primary); }
+
+.modal-body {
+  padding: 1.25rem 1.5rem;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding: 1rem 1.5rem;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+/* ==================== FORM ==================== */
+.form-group { margin-bottom: 1.25rem; }
+
+.field-label {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  margin-bottom: 0.5rem;
+}
+
+.field-error {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--danger-light);
+  margin-top: 0.35rem;
+  min-height: 1.1rem;
+}
+
+/* ==================== DATE INPUT ==================== */
+.date-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  position: relative;
+}
+
+.date-text-input {
+  flex: 1;
+  padding: 0.65rem 0.9rem;
+  background: var(--bg-highlight);
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  font-family: inherit;
+  transition: border-color var(--transition);
+}
+
+.date-text-input:focus       { outline: none; border-color: var(--accent); }
+.date-text-input.error       { border-color: var(--danger); }
+.date-text-input::placeholder { color: var(--text-subdued); }
+
+.btn-cal-icon {
+  padding: 0.6rem 0.8rem;
+  background: var(--bg-highlight);
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition);
+}
+
+.btn-cal-icon:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.hidden-picker {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+  width: 0;
+  height: 0;
+}
+
+/* ==================== EXERCISE CARD ==================== */
+.exercise-card {
+  background: var(--bg-highlight);
+  border-radius: var(--radius);
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+  border: 1px solid transparent;
+  transition: border-color var(--transition);
+}
+
+.exercise-card.has-error { border-color: var(--danger); }
+
+.exercise-card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.75rem;
+}
+
+.exercise-card-header input[type="text"] {
+  flex: 1;
+  padding: 0.55rem 0.75rem;
+  background: var(--bg-elevated);
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  font-family: inherit;
+  transition: border-color var(--transition);
+}
+
+.exercise-card-header input[type="text"]:focus        { outline: none; border-color: var(--accent); }
+.exercise-card-header input[type="text"]::placeholder { color: var(--text-subdued); }
+
+/* Type toggle */
+.type-toggle {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 0.75rem;
+}
+
+.type-btn {
+  flex: 1;
+  padding: 0.4rem;
+  background: var(--bg-elevated);
+  border: none;
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.type-btn.active {
+  background: var(--accent);
+  color: #000;
+}
+
+/* Number fields row */
+.fields-row {
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-end;
+}
+
+.num-input-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  flex: 1;
+}
+
+.num-input-wrap label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.num-input-wrap input[type="number"] {
+  padding: 0.55rem 0.7rem;
+  background: var(--bg-elevated);
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  font-family: inherit;
+  width: 100%;
+  transition: border-color var(--transition);
+  color-scheme: dark;
+}
+
+.num-input-wrap input[type="number"]:focus { outline: none; border-color: var(--accent); }
+.num-input-wrap input[type="number"].error { border-color: var(--danger); }
+
+.fields-separator {
+  color: var(--text-subdued);
+  font-size: 1.1rem;
+  padding-bottom: 0.55rem;
+  flex-shrink: 0;
+}
+
+.ex-error {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--danger-light);
+  margin-top: 0.5rem;
+  min-height: 1rem;
+}
+
+/* ==================== TOAST ==================== */
+.toast {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  background: var(--bg-elevated);
+  border-left: 3px solid var(--accent);
+  color: var(--text-primary);
+  padding: 0.75rem 1.25rem;
+  border-radius: var(--radius);
+  font-size: 0.875rem;
+  z-index: 200;
+  animation: toastIn 0.25s ease, toastOut 0.3s ease 2.2s forwards;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
+}
+
+.toast.error { border-left-color: var(--danger-light); }
+
+@keyframes toastIn {
+  from { transform: translateY(8px); opacity: 0; }
+  to   { opacity: 1; transform: none; }
+}
+
+@keyframes toastOut {
+  to { opacity: 0; transform: translateY(5px); }
+}
+
+/* ==================== RESPONSIVE ==================== */
+@media (max-width: 600px) {
+  #app           { padding: 1rem 1rem 3rem; }
+  .page-title    { font-size: 1.5rem; }
+  .modal-dialog  { max-height: 95vh; border-radius: 10px; }
+  .modal-body    { padding: 1rem; }
+  .modal-header,
+  .modal-footer  { padding-left: 1rem; padding-right: 1rem; }
+}
