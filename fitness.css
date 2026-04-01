@@ -163,9 +163,9 @@ header {
 
 .workout-card-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 0.65rem;
-  padding: 0.65rem 0.5rem;
+  padding: 0.75rem 0.5rem 0.6rem;
   border-radius: var(--radius);
   transition: background var(--transition);
 }
@@ -178,27 +178,64 @@ header {
   accent-color: var(--accent);
   cursor: pointer;
   flex-shrink: 0;
+  margin-top: 0.15rem; /* align with first line of name text */
 }
 
-.workout-summary {
+/* Workout name + muscle tags column */
+.workout-info {
   flex: 1;
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
 }
 
-.workout-ex-count {
-  font-size: 0.9rem;
-  font-weight: 500;
+.workout-name {
+  font-size: 0.95rem;
+  font-weight: 600;
   color: var(--text-primary);
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
 }
 
-.workout-time {
-  font-size: 0.8rem;
+.workout-name.unnamed {
   color: var(--text-subdued);
-  white-space: nowrap;
+  font-style: italic;
+  font-weight: 400;
+}
+
+/* Muscle group tags */
+.muscle-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.muscle-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.12rem 0.55rem;
+  border-radius: 500px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+/* Warm-up / Stretching badges on card */
+.session-badges {
+  display: flex;
+  gap: 0.3rem;
+  margin-top: 0.05rem;
+}
+
+.session-badge {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--text-subdued);
+  letter-spacing: 0.03em;
 }
 
 .workout-card-actions {
@@ -206,6 +243,7 @@ header {
   align-items: center;
   gap: 0.1rem;
   flex-shrink: 0;
+  margin-top: 0; /* align with name */
 }
 
 .btn-icon-action {
@@ -220,10 +258,19 @@ header {
   transition: all var(--transition);
 }
 
-.btn-icon-action:hover               { color: var(--text-primary); background: rgba(255,255,255,0.08); }
-.btn-icon-action.danger:hover        { color: var(--danger-light); background: rgba(226,33,52,0.1); }
-.btn-icon-action.expand-btn          { font-size: 0.6rem; letter-spacing: -1px; }
-.btn-icon-action.expand-btn.open     { color: var(--accent); }
+.btn-icon-action:hover        { color: var(--text-primary); background: rgba(255,255,255,0.08); }
+.btn-icon-action.danger:hover { color: var(--danger-light); background: rgba(226,33,52,0.1); }
+
+/* Expand button — green, same as Add Workout */
+.btn-icon-action.expand-btn {
+  color: var(--accent);
+  font-size: 0.65rem;
+}
+
+.btn-icon-action.expand-btn:hover {
+  color: var(--accent-hover);
+  background: rgba(29,185,84,0.1);
+}
 
 /* ==================== EXERCISE ROWS (inside expanded card) ==================== */
 .workout-card-body {
@@ -360,7 +407,68 @@ header {
 
 .btn-danger:hover { background: var(--danger-light); }
 
-/* ==================== MODAL ==================== */
+/* ==================== MODAL NAME INPUT ==================== */
+.modal-name-input {
+  width: 100%;
+  padding: 0.65rem 0.9rem;
+  background: var(--bg-highlight);
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  font-weight: 500;
+  font-family: inherit;
+  transition: border-color var(--transition);
+}
+
+.modal-name-input:focus        { outline: none; border-color: var(--accent); }
+.modal-name-input::placeholder { color: var(--text-subdued); }
+
+/* ==================== SESSION CHECKBOXES ==================== */
+.check-options-row {
+  display: flex;
+  gap: 1.5rem;
+}
+
+.check-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  user-select: none;
+}
+
+.check-option input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+/* ==================== SELECT INPUT (muscle group) ==================== */
+.select-input {
+  width: 100%;
+  padding: 0.5rem 0.65rem;
+  background: var(--bg-elevated);
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  font-family: inherit;
+  cursor: pointer;
+  color-scheme: dark;
+  transition: border-color var(--transition);
+}
+
+.select-input:focus { outline: none; border-color: var(--accent); }
+.select-input option { background: var(--bg-elevated); color: var(--text-primary); }
+
+/* muscle group select inside inline edit uses bg-highlight instead */
+.inline-edit-form .select-input { background: var(--bg-highlight); }
+
+/* ==================== MODAL FOOTER (with delete button) ==================== */
 .modal-overlay {
   position: fixed;
   inset: 0;
@@ -422,11 +530,16 @@ header {
 .modal-footer {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  gap: 0.75rem;
+  justify-content: space-between;
   padding: 1rem 1.5rem;
   border-top: 1px solid var(--border);
   flex-shrink: 0;
+}
+
+.modal-footer-right {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
 }
 
 /* ==================== FORM ==================== */

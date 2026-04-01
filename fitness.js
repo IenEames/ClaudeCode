@@ -3,6 +3,16 @@
 const KEYS = { WORKOUTS: 'ft_workouts' };
 const TODAY = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
 
+const MUSCLE_GROUPS = ['Chest', 'Legs', 'Abs', 'Arms', 'Back'];
+
+const MUSCLE_COLORS = {
+  Chest: { bg: 'rgba(29,185,84,0.18)',   color: '#1db954' }, // accent green
+  Legs:  { bg: 'rgba(167,139,250,0.18)', color: '#a78bfa' }, // violet
+  Abs:   { bg: 'rgba(251,146,60,0.18)',  color: '#fb923c' }, // orange
+  Arms:  { bg: 'rgba(96,165,250,0.18)',  color: '#60a5fa' }, // blue
+  Back:  { bg: 'rgba(244,114,182,0.18)', color: '#f472b6' }, // pink
+};
+
 function loadData(key) {
   try {
     const raw = localStorage.getItem(key);
@@ -18,17 +28,20 @@ function saveWorkouts(data)  { saveData(KEYS.WORKOUTS, data); }
 
 const state = {
   // Modal
-  modalDate:        TODAY,   // YYYY-MM-DD
-  modalExercises:   [],      // [{ id, name, type, sets, reps, minutes }]
+  modalDate:        TODAY,
+  modalName:        '',
+  modalWarmup:      false,
+  modalStretching:  false,
+  modalExercises:   [],      // [{ id, name, type, sets, reps, minutes, muscleGroup }]
   editingWorkoutId: null,    // null = adding new | string = editing existing
 
   // History UI
-  expandedWorkouts: new Set(),   // workout IDs currently expanded
-  selectedWorkouts: new Set(),   // workout IDs checked for bulk ops
+  expandedWorkouts: new Set(),
+  selectedWorkouts: new Set(),
 
   // Inline exercise edit
-  inlineEdit:     null,          // { workoutId, exIdx } | null
-  inlineEditData: null,          // { name, type, sets, reps, minutes } — mutable
+  inlineEdit:     null,      // { workoutId, exIdx } | null
+  inlineEditData: null,      // { name, type, sets, reps, minutes, muscleGroup }
 };
 
 // ==================== UTILITIES ====================
@@ -44,14 +57,12 @@ function formatDateDisplay(dateStr) {
   return `${months[m - 1]} ${d}, ${y}`;
 }
 
-// YYYY-MM-DD → DD-MM-YYYY
 function toDisplayDate(isoDate) {
   if (!isoDate) return '';
   const [y, m, d] = isoDate.split('-');
   return `${d}-${m}-${y}`;
 }
 
-// DD-MM-YYYY → YYYY-MM-DD, or null if invalid
 function parseDDMMYYYY(str) {
   const match = str.trim().match(/^(\d{2})-(\d{2})-(\d{4})$/);
   if (!match) return null;
@@ -65,11 +76,9 @@ function parseDDMMYYYY(str) {
   return `${y}-${m}-${d}`;
 }
 
-// ISO timestamp → "3:45 PM"
 function formatTime(isoString) {
   if (!isoString) return '';
-  const d = new Date(isoString);
-  return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+  return new Date(isoString).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
 }
 
 function showToast(msg, type = 'success') {
@@ -86,10 +95,16 @@ function isPositiveInt(val) {
   return Number.isInteger(n) && n >= 1;
 }
 
+// Returns muscle groups present in workout, in canonical MUSCLE_GROUPS order
+function getWorkoutMuscleGroups(workout) {
+  const present = new Set(workout.exercises.map(ex => ex.muscleGroup).filter(Boolean));
+  return MUSCLE_GROUPS.filter(g => present.has(g));
+}
+
 // ==================== WORKOUT HISTORY ====================
 
 function renderWorkoutHistory() {
-  const workouts = getWorkouts();
+  const workouts  = getWorkouts();
   const container = document.getElementById('workout-history');
   container.innerHTML = '';
 
@@ -102,21 +117,16 @@ function renderWorkoutHistory() {
     return;
   }
 
-  // Sort by timestamp desc (fall back to date for legacy entries without timestamp)
   const sorted = [...workouts].sort((a, b) => {
     const tsA = a.timestamp || (a.date + 'T00:00:00.000Z');
     const tsB = b.timestamp || (b.date + 'T00:00:00.000Z');
     return tsB.localeCompare(tsA);
   });
 
-  // Group by date, preserving sorted order
   const dateOrder = [];
-  const groups = {};
+  const groups    = {};
   for (const w of sorted) {
-    if (!groups[w.date]) {
-      groups[w.date] = [];
-      dateOrder.push(w.date);
-    }
+    if (!groups[w.date]) { groups[w.date] = []; dateOrder.push(w.date); }
     groups[w.date].push(w);
   }
 
@@ -125,72 +135,82 @@ function renderWorkoutHistory() {
     header.className = 'date-header';
     header.textContent = formatDateDisplay(date);
     container.appendChild(header);
-
-    groups[date].forEach(workout => {
-      container.appendChild(buildWorkoutCard(workout));
-    });
+    groups[date].forEach(workout => container.appendChild(buildWorkoutCard(workout)));
   });
 
   updateBulkBar();
 }
 
 function buildWorkoutCard(workout) {
-  const isExpanded = state.expandedWorkouts.has(workout.id);
-  const isSelected = state.selectedWorkouts.has(workout.id);
-  const exCount    = workout.exercises.length;
+  const isExpanded  = state.expandedWorkouts.has(workout.id);
+  const isSelected  = state.selectedWorkouts.has(workout.id);
+  const muscleTags  = getWorkoutMuscleGroups(workout);
 
   const card = document.createElement('div');
   card.className = 'workout-card' + (isSelected ? ' is-selected' : '');
 
-  // ── Header ────────────────────────────────────────
+  // ── Header ───────────────────────────────────────────────
   const header = document.createElement('div');
   header.className = 'workout-card-header';
 
   // Checkbox
   const checkbox = document.createElement('input');
-  checkbox.type    = 'checkbox';
+  checkbox.type      = 'checkbox';
   checkbox.className = 'workout-checkbox';
-  checkbox.checked = isSelected;
+  checkbox.checked   = isSelected;
   checkbox.addEventListener('change', () => {
-    if (checkbox.checked) {
-      state.selectedWorkouts.add(workout.id);
-      card.classList.add('is-selected');
-    } else {
-      state.selectedWorkouts.delete(workout.id);
-      card.classList.remove('is-selected');
-    }
+    if (checkbox.checked) { state.selectedWorkouts.add(workout.id);    card.classList.add('is-selected'); }
+    else                  { state.selectedWorkouts.delete(workout.id); card.classList.remove('is-selected'); }
     updateBulkBar();
   });
 
-  // Summary text
-  const summary = document.createElement('div');
-  summary.className = 'workout-summary';
+  // Workout info: name + muscle tags (+ optional session badges)
+  const workoutInfo = document.createElement('div');
+  workoutInfo.className = 'workout-info';
 
-  const countEl = document.createElement('span');
-  countEl.className = 'workout-ex-count';
-  countEl.textContent = `${exCount} exercise${exCount !== 1 ? 's' : ''}`;
-  summary.appendChild(countEl);
+  const nameEl = document.createElement('span');
+  nameEl.className = 'workout-name' + (workout.name ? '' : ' unnamed');
+  nameEl.textContent = workout.name || 'Unnamed';
+  workoutInfo.appendChild(nameEl);
 
-  const timeStr = formatTime(workout.timestamp);
-  if (timeStr) {
-    const timeEl = document.createElement('span');
-    timeEl.className = 'workout-time';
-    timeEl.textContent = timeStr;
-    summary.appendChild(timeEl);
+  if (muscleTags.length > 0) {
+    const tagsEl = document.createElement('div');
+    tagsEl.className = 'muscle-tags';
+    muscleTags.forEach(group => {
+      const tag = document.createElement('span');
+      tag.className = 'muscle-tag';
+      tag.style.background = MUSCLE_COLORS[group].bg;
+      tag.style.color      = MUSCLE_COLORS[group].color;
+      tag.textContent = group;
+      tagsEl.appendChild(tag);
+    });
+    workoutInfo.appendChild(tagsEl);
   }
 
-  // Action buttons
-  const actions = document.createElement('div');
-  actions.className = 'workout-card-actions';
+  // Session badges (warm-up / stretching)
+  const badges = [];
+  if (workout.warmup)     badges.push('Warm-up');
+  if (workout.stretching) badges.push('Stretching');
+  if (badges.length > 0) {
+    const badgeRow = document.createElement('div');
+    badgeRow.className = 'session-badges';
+    badges.forEach(b => {
+      const span = document.createElement('span');
+      span.className = 'session-badge';
+      span.textContent = b;
+      badgeRow.appendChild(span);
+    });
+    workoutInfo.appendChild(badgeRow);
+  }
 
+  // Expand button — green, positioned where timestamp used to be
   const expandBtn = document.createElement('button');
-  expandBtn.className = 'btn-icon-action expand-btn' + (isExpanded ? ' open' : '');
-  expandBtn.title = isExpanded ? 'Collapse' : 'Expand';
+  expandBtn.className = 'btn-icon-action expand-btn';
+  expandBtn.title     = isExpanded ? 'Collapse' : 'Expand';
   expandBtn.textContent = isExpanded ? '▲' : '▼';
   expandBtn.addEventListener('click', () => {
     if (state.expandedWorkouts.has(workout.id)) {
       state.expandedWorkouts.delete(workout.id);
-      // Cancel any inline edit inside this workout
       if (state.inlineEdit && state.inlineEdit.workoutId === workout.id) {
         state.inlineEdit = null;
         state.inlineEditData = null;
@@ -201,28 +221,27 @@ function buildWorkoutCard(workout) {
     renderWorkoutHistory();
   });
 
+  // Edit and delete
   const editBtn = document.createElement('button');
   editBtn.className = 'btn-icon-action';
-  editBtn.title = 'Edit workout';
+  editBtn.title     = 'Edit workout';
   editBtn.textContent = '✏';
   editBtn.addEventListener('click', () => openEditModal(workout));
 
   const deleteBtn = document.createElement('button');
   deleteBtn.className = 'btn-icon-action danger';
-  deleteBtn.title = 'Delete workout';
+  deleteBtn.title     = 'Delete workout';
   deleteBtn.textContent = '✕';
   deleteBtn.addEventListener('click', () => deleteWorkout(workout.id));
 
-  actions.appendChild(expandBtn);
-  actions.appendChild(editBtn);
-  actions.appendChild(deleteBtn);
-
   header.appendChild(checkbox);
-  header.appendChild(summary);
-  header.appendChild(actions);
+  header.appendChild(workoutInfo);
+  header.appendChild(expandBtn);
+  header.appendChild(editBtn);
+  header.appendChild(deleteBtn);
   card.appendChild(header);
 
-  // ── Body (exercises, shown when expanded) ────────
+  // ── Body (exercises, shown when expanded) ────────────────
   if (isExpanded) {
     const body = document.createElement('div');
     body.className = 'workout-card-body';
@@ -263,36 +282,49 @@ function buildExerciseRow(workout, ex, exIdx) {
     detail.textContent = `${mins} min`;
   }
 
+  // Muscle group tag on the row (small, if set)
+  if (ex.muscleGroup && MUSCLE_COLORS[ex.muscleGroup]) {
+    const tag = document.createElement('span');
+    tag.className = 'muscle-tag';
+    tag.style.background = MUSCLE_COLORS[ex.muscleGroup].bg;
+    tag.style.color      = MUSCLE_COLORS[ex.muscleGroup].color;
+    tag.textContent = ex.muscleGroup;
+    row.appendChild(name);
+    row.appendChild(tag);
+  } else {
+    row.appendChild(name);
+  }
+
+  row.appendChild(detail);
+
   const rowActions = document.createElement('div');
   rowActions.className = 'exercise-row-actions';
 
   const editBtn = document.createElement('button');
-  editBtn.className = 'btn-icon-action';
-  editBtn.title = 'Edit exercise';
+  editBtn.className   = 'btn-icon-action';
+  editBtn.title       = 'Edit exercise';
   editBtn.textContent = '✏';
   editBtn.addEventListener('click', () => {
     state.inlineEdit = { workoutId: workout.id, exIdx };
     state.inlineEditData = {
-      name:    ex.name,
-      type:    ex.type,
-      sets:    ex.sets    != null ? String(ex.sets)    : '',
-      reps:    ex.reps    != null ? String(ex.reps)    : '',
-      minutes: ex.minutes != null ? String(ex.minutes) : (ex.type === 'time' ? String(Math.round((ex.duration || 0) / 60)) : ''),
+      name:        ex.name,
+      type:        ex.type,
+      sets:        ex.sets    != null ? String(ex.sets)    : '',
+      reps:        ex.reps    != null ? String(ex.reps)    : '',
+      minutes:     ex.minutes != null ? String(ex.minutes) : (ex.type === 'time' ? String(Math.round((ex.duration || 0) / 60)) : ''),
+      muscleGroup: ex.muscleGroup || '',
     };
     renderWorkoutHistory();
   });
 
   const deleteBtn = document.createElement('button');
-  deleteBtn.className = 'btn-icon-action danger';
-  deleteBtn.title = 'Delete exercise';
+  deleteBtn.className   = 'btn-icon-action danger';
+  deleteBtn.title       = 'Delete exercise';
   deleteBtn.textContent = '✕';
   deleteBtn.addEventListener('click', () => deleteExercise(workout.id, exIdx));
 
   rowActions.appendChild(editBtn);
   rowActions.appendChild(deleteBtn);
-
-  row.appendChild(name);
-  row.appendChild(detail);
   row.appendChild(rowActions);
   return row;
 }
@@ -305,7 +337,7 @@ function buildInlineEditForm(workout, exIdx) {
 
   // Name
   const nameInput = document.createElement('input');
-  nameInput.type = 'text';
+  nameInput.type      = 'text';
   nameInput.className = 'inline-name-input';
   nameInput.placeholder = 'Exercise name';
   nameInput.value = data.name;
@@ -317,14 +349,22 @@ function buildInlineEditForm(workout, exIdx) {
   typeToggle.className = 'type-toggle';
 
   const repsBtn = document.createElement('button');
-  repsBtn.className = 'type-btn' + (data.type === 'reps' ? ' active' : '');
+  repsBtn.className   = 'type-btn' + (data.type === 'reps' ? ' active' : '');
   repsBtn.textContent = 'Reps';
-  repsBtn.type = 'button';
+  repsBtn.type        = 'button';
 
   const timeBtn = document.createElement('button');
-  timeBtn.className = 'type-btn' + (data.type === 'time' ? ' active' : '');
+  timeBtn.className   = 'type-btn' + (data.type === 'time' ? ' active' : '');
   timeBtn.textContent = 'Time';
-  timeBtn.type = 'button';
+  timeBtn.type        = 'button';
+
+  typeToggle.appendChild(repsBtn);
+  typeToggle.appendChild(timeBtn);
+  form.appendChild(typeToggle);
+
+  // Muscle group select
+  const muscleSelect = buildMuscleSelect(data.muscleGroup, val => { data.muscleGroup = val; });
+  form.appendChild(muscleSelect);
 
   // Reps fields
   const repsWrap = document.createElement('div');
@@ -332,50 +372,43 @@ function buildInlineEditForm(workout, exIdx) {
 
   const setsGroup = document.createElement('div');
   setsGroup.className = 'num-input-wrap';
-  const setsLbl = document.createElement('label');
-  setsLbl.textContent = 'Sets';
+  const setsLbl = document.createElement('label'); setsLbl.textContent = 'Sets';
   const setsInp = document.createElement('input');
-  setsInp.type = 'number'; setsInp.min = '1'; setsInp.placeholder = '0';
-  setsInp.value = data.sets;
+  setsInp.type = 'number'; setsInp.min = '1'; setsInp.placeholder = '0'; setsInp.value = data.sets;
   setsInp.addEventListener('input', () => { data.sets = setsInp.value; });
   setsGroup.appendChild(setsLbl); setsGroup.appendChild(setsInp);
 
   const inlineSep = document.createElement('span');
-  inlineSep.className = 'fields-separator';
-  inlineSep.textContent = '×';
+  inlineSep.className = 'fields-separator'; inlineSep.textContent = '×';
 
   const repsGroup = document.createElement('div');
   repsGroup.className = 'num-input-wrap';
-  const repsLbl = document.createElement('label');
-  repsLbl.textContent = 'Reps';
+  const repsLbl = document.createElement('label'); repsLbl.textContent = 'Reps';
   const repsInp = document.createElement('input');
-  repsInp.type = 'number'; repsInp.min = '1'; repsInp.placeholder = '0';
-  repsInp.value = data.reps;
+  repsInp.type = 'number'; repsInp.min = '1'; repsInp.placeholder = '0'; repsInp.value = data.reps;
   repsInp.addEventListener('input', () => { data.reps = repsInp.value; });
   repsGroup.appendChild(repsLbl); repsGroup.appendChild(repsInp);
 
-  repsWrap.appendChild(setsGroup);
-  repsWrap.appendChild(inlineSep);
-  repsWrap.appendChild(repsGroup);
+  repsWrap.appendChild(setsGroup); repsWrap.appendChild(inlineSep); repsWrap.appendChild(repsGroup);
 
   // Time fields
   const timeWrap = document.createElement('div');
   timeWrap.className = 'fields-row';
-
   const minsGroup = document.createElement('div');
   minsGroup.className = 'num-input-wrap';
-  const minsLbl = document.createElement('label');
-  minsLbl.textContent = 'Minutes';
+  const minsLbl = document.createElement('label'); minsLbl.textContent = 'Minutes';
   const minsInp = document.createElement('input');
-  minsInp.type = 'number'; minsInp.min = '1'; minsInp.placeholder = '0';
-  minsInp.value = data.minutes;
+  minsInp.type = 'number'; minsInp.min = '1'; minsInp.placeholder = '0'; minsInp.value = data.minutes;
   minsInp.addEventListener('input', () => { data.minutes = minsInp.value; });
   minsGroup.appendChild(minsLbl); minsGroup.appendChild(minsInp);
   timeWrap.appendChild(minsGroup);
 
-  // Wire type toggle to show/hide field sets
   repsWrap.classList.toggle('hidden', data.type !== 'reps');
   timeWrap.classList.toggle('hidden', data.type !== 'time');
+
+  // Error (defined before toggle listeners reference it)
+  const errEl = document.createElement('span');
+  errEl.className = 'ex-error';
 
   repsBtn.addEventListener('click', () => {
     data.type = 'reps';
@@ -390,15 +423,8 @@ function buildInlineEditForm(workout, exIdx) {
     errEl.textContent = '';
   });
 
-  typeToggle.appendChild(repsBtn);
-  typeToggle.appendChild(timeBtn);
-  form.appendChild(typeToggle);
   form.appendChild(repsWrap);
   form.appendChild(timeWrap);
-
-  // Error
-  const errEl = document.createElement('span');
-  errEl.className = 'ex-error';
   form.appendChild(errEl);
 
   // Footer
@@ -406,9 +432,9 @@ function buildInlineEditForm(workout, exIdx) {
   footer.className = 'inline-edit-footer';
 
   const cancelBtn = document.createElement('button');
-  cancelBtn.className = 'btn-ghost';
+  cancelBtn.className   = 'btn-ghost';
   cancelBtn.textContent = 'Cancel';
-  cancelBtn.type = 'button';
+  cancelBtn.type        = 'button';
   cancelBtn.addEventListener('click', () => {
     state.inlineEdit = null;
     state.inlineEditData = null;
@@ -416,16 +442,37 @@ function buildInlineEditForm(workout, exIdx) {
   });
 
   const saveBtn = document.createElement('button');
-  saveBtn.className = 'btn-primary';
+  saveBtn.className   = 'btn-primary';
   saveBtn.textContent = 'Save';
-  saveBtn.type = 'button';
+  saveBtn.type        = 'button';
   saveBtn.addEventListener('click', () => saveInlineEdit(workout.id, exIdx, errEl));
 
   footer.appendChild(cancelBtn);
   footer.appendChild(saveBtn);
   form.appendChild(footer);
-
   return form;
+}
+
+// Shared helper: builds a muscle group <select> element
+function buildMuscleSelect(currentValue, onChange) {
+  const select = document.createElement('select');
+  select.className = 'select-input';
+
+  const blank = document.createElement('option');
+  blank.value = '';
+  blank.textContent = '— Muscle Group —';
+  select.appendChild(blank);
+
+  MUSCLE_GROUPS.forEach(group => {
+    const opt = document.createElement('option');
+    opt.value = group;
+    opt.textContent = group;
+    if (group === currentValue) opt.selected = true;
+    select.appendChild(opt);
+  });
+
+  select.addEventListener('change', () => onChange(select.value));
+  return select;
 }
 
 // ==================== INLINE EXERCISE EDIT ====================
@@ -433,13 +480,10 @@ function buildInlineEditForm(workout, exIdx) {
 function saveInlineEdit(workoutId, exIdx, errEl) {
   const data = state.inlineEditData;
 
-  if (!data.name.trim()) {
-    errEl.textContent = 'Exercise name is required.';
-    return;
-  }
+  if (!data.name.trim())        { errEl.textContent = 'Exercise name is required.';       return; }
   if (data.type === 'reps') {
-    if (!isPositiveInt(data.sets))  { errEl.textContent = 'Sets must be a positive integer.';  return; }
-    if (!isPositiveInt(data.reps))  { errEl.textContent = 'Reps must be a positive integer.';  return; }
+    if (!isPositiveInt(data.sets)) { errEl.textContent = 'Sets must be a positive integer.';  return; }
+    if (!isPositiveInt(data.reps)) { errEl.textContent = 'Reps must be a positive integer.';  return; }
   } else {
     if (!isPositiveInt(data.minutes)) { errEl.textContent = 'Minutes must be a positive integer.'; return; }
   }
@@ -449,8 +493,8 @@ function saveInlineEdit(workoutId, exIdx, errEl) {
   if (!workout) return;
 
   workout.exercises[exIdx] = data.type === 'reps'
-    ? { name: data.name.trim(), type: 'reps', sets: parseInt(data.sets), reps: parseInt(data.reps), duration: 0 }
-    : { name: data.name.trim(), type: 'time', sets: 1, reps: 0, minutes: parseInt(data.minutes), duration: parseInt(data.minutes) * 60 };
+    ? { name: data.name.trim(), type: 'reps', sets: parseInt(data.sets), reps: parseInt(data.reps), duration: 0, muscleGroup: data.muscleGroup }
+    : { name: data.name.trim(), type: 'time', sets: 1, reps: 0, minutes: parseInt(data.minutes), duration: parseInt(data.minutes) * 60, muscleGroup: data.muscleGroup };
 
   saveWorkouts(workouts);
   state.inlineEdit = null;
@@ -481,10 +525,8 @@ function deleteExercise(workoutId, exIdx) {
 
   workout.exercises.splice(exIdx, 1);
 
-  // If no exercises remain, remove the whole record
   if (workout.exercises.length === 0) {
-    const filtered = workouts.filter(w => w.id !== workoutId);
-    saveWorkouts(filtered);
+    saveWorkouts(workouts.filter(w => w.id !== workoutId));
     state.expandedWorkouts.delete(workoutId);
     state.selectedWorkouts.delete(workoutId);
   } else {
@@ -506,15 +548,14 @@ function updateBulkBar() {
   const count = state.selectedWorkouts.size;
   if (count > 0) {
     bar.classList.remove('hidden');
-    document.getElementById('bulk-count').textContent =
-      `${count} workout${count !== 1 ? 's' : ''} selected`;
+    document.getElementById('bulk-count').textContent = `${count} workout${count !== 1 ? 's' : ''} selected`;
   } else {
     bar.classList.add('hidden');
   }
 }
 
 function bulkDelete() {
-  const count    = state.selectedWorkouts.size;
+  const count = state.selectedWorkouts.size;
   const workouts = getWorkouts().filter(w => !state.selectedWorkouts.has(w.id));
   saveWorkouts(workouts);
   state.selectedWorkouts.forEach(id => {
@@ -536,42 +577,56 @@ function clearSelection() {
 
 // ==================== MODAL (ADD / EDIT WORKOUT) ====================
 
-function openModal() {
-  state.editingWorkoutId = null;
-  state.modalDate        = TODAY;
-  state.modalExercises   = [];
-
-  document.getElementById('modal-title').textContent     = 'Add Workout';
-  document.getElementById('modal-date-text').value       = toDisplayDate(TODAY);
+function resetModalForm() {
   document.getElementById('modal-date-text').classList.remove('error');
-  document.getElementById('modal-date-picker').value     = TODAY;
-  document.getElementById('date-error').textContent      = '';
-  document.getElementById('modal-overlay').classList.remove('hidden');
+  document.getElementById('date-error').textContent = '';
+}
 
+function openModal() {
+  state.editingWorkoutId  = null;
+  state.modalDate         = TODAY;
+  state.modalName         = '';
+  state.modalWarmup       = false;
+  state.modalStretching   = false;
+  state.modalExercises    = [];
+
+  document.getElementById('modal-title').textContent       = 'Add Workout';
+  document.getElementById('modal-workout-name').value      = '';
+  document.getElementById('modal-date-text').value         = toDisplayDate(TODAY);
+  document.getElementById('modal-date-picker').value       = TODAY;
+  document.getElementById('modal-warmup').checked          = false;
+  document.getElementById('modal-stretching').checked      = false;
+  document.getElementById('btn-delete-workout').classList.add('hidden');
+  resetModalForm();
+  document.getElementById('modal-overlay').classList.remove('hidden');
   renderModalExercises();
 }
 
 function openEditModal(workout) {
-  state.editingWorkoutId = workout.id;
-  state.modalDate        = workout.date;
-  state.modalExercises   = workout.exercises.map(ex => ({
-    id:      generateId(),
-    name:    ex.name,
-    type:    ex.type,
-    sets:    ex.sets    != null ? String(ex.sets)    : '',
-    reps:    ex.reps    != null ? String(ex.reps)    : '',
-    minutes: ex.minutes != null
-      ? String(ex.minutes)
-      : (ex.type === 'time' ? String(Math.round((ex.duration || 0) / 60)) : ''),
+  state.editingWorkoutId  = workout.id;
+  state.modalDate         = workout.date;
+  state.modalName         = workout.name || '';
+  state.modalWarmup       = workout.warmup || false;
+  state.modalStretching   = workout.stretching || false;
+  state.modalExercises    = workout.exercises.map(ex => ({
+    id:          generateId(),
+    name:        ex.name,
+    type:        ex.type,
+    sets:        ex.sets    != null ? String(ex.sets)    : '',
+    reps:        ex.reps    != null ? String(ex.reps)    : '',
+    minutes:     ex.minutes != null ? String(ex.minutes) : (ex.type === 'time' ? String(Math.round((ex.duration || 0) / 60)) : ''),
+    muscleGroup: ex.muscleGroup || '',
   }));
 
-  document.getElementById('modal-title').textContent     = 'Edit Workout';
-  document.getElementById('modal-date-text').value       = toDisplayDate(workout.date);
-  document.getElementById('modal-date-text').classList.remove('error');
-  document.getElementById('modal-date-picker').value     = workout.date;
-  document.getElementById('date-error').textContent      = '';
+  document.getElementById('modal-title').textContent       = 'Edit Workout';
+  document.getElementById('modal-workout-name').value      = state.modalName;
+  document.getElementById('modal-date-text').value         = toDisplayDate(workout.date);
+  document.getElementById('modal-date-picker').value       = workout.date;
+  document.getElementById('modal-warmup').checked          = state.modalWarmup;
+  document.getElementById('modal-stretching').checked      = state.modalStretching;
+  document.getElementById('btn-delete-workout').classList.remove('hidden');
+  resetModalForm();
   document.getElementById('modal-overlay').classList.remove('hidden');
-
   renderModalExercises();
 }
 
@@ -588,45 +643,48 @@ function renderModalExercises() {
     const card = document.createElement('div');
     card.className = 'exercise-card';
 
+    // Header: name + remove
     const cardHeader = document.createElement('div');
     cardHeader.className = 'exercise-card-header';
 
     const nameInput = document.createElement('input');
-    nameInput.type = 'text';
+    nameInput.type        = 'text';
     nameInput.placeholder = 'Exercise name';
-    nameInput.value = ex.name;
-    nameInput.addEventListener('input', () => {
-      state.modalExercises[i].name = nameInput.value;
-      clearExError(card);
-    });
+    nameInput.value       = ex.name;
+    nameInput.addEventListener('input', () => { state.modalExercises[i].name = nameInput.value; clearExError(card); });
 
     const removeBtn = document.createElement('button');
-    removeBtn.className = 'btn-remove-ex';
-    removeBtn.title = 'Remove exercise';
+    removeBtn.className   = 'btn-remove-ex';
+    removeBtn.title       = 'Remove exercise';
     removeBtn.textContent = '✕';
-    removeBtn.type = 'button';
-    removeBtn.addEventListener('click', () => {
-      state.modalExercises.splice(i, 1);
-      renderModalExercises();
-    });
+    removeBtn.type        = 'button';
+    removeBtn.addEventListener('click', () => { state.modalExercises.splice(i, 1); renderModalExercises(); });
 
     cardHeader.appendChild(nameInput);
     cardHeader.appendChild(removeBtn);
     card.appendChild(cardHeader);
 
+    // Type toggle
     const typeToggle = document.createElement('div');
     typeToggle.className = 'type-toggle';
 
     const repsBtn = document.createElement('button');
-    repsBtn.className = 'type-btn' + (ex.type === 'reps' ? ' active' : '');
-    repsBtn.textContent = 'Reps';
-    repsBtn.type = 'button';
+    repsBtn.className   = 'type-btn' + (ex.type === 'reps' ? ' active' : '');
+    repsBtn.textContent = 'Reps'; repsBtn.type = 'button';
 
     const timeBtn = document.createElement('button');
-    timeBtn.className = 'type-btn' + (ex.type === 'time' ? ' active' : '');
-    timeBtn.textContent = 'Time';
-    timeBtn.type = 'button';
+    timeBtn.className   = 'type-btn' + (ex.type === 'time' ? ' active' : '');
+    timeBtn.textContent = 'Time'; timeBtn.type = 'button';
 
+    typeToggle.appendChild(repsBtn);
+    typeToggle.appendChild(timeBtn);
+    card.appendChild(typeToggle);
+
+    // Muscle group select
+    const muscleSelect = buildMuscleSelect(ex.muscleGroup, val => { state.modalExercises[i].muscleGroup = val; });
+    card.appendChild(muscleSelect);
+
+    // Number fields
     const repsFields = buildRepsFields(i, ex);
     const timeFields = buildTimeFields(i, ex);
     repsFields.classList.toggle('hidden', ex.type !== 'reps');
@@ -638,7 +696,6 @@ function renderModalExercises() {
       repsFields.classList.remove('hidden'); timeFields.classList.add('hidden');
       clearExError(card);
     });
-
     timeBtn.addEventListener('click', () => {
       state.modalExercises[i].type = 'time';
       timeBtn.classList.add('active'); repsBtn.classList.remove('active');
@@ -646,9 +703,6 @@ function renderModalExercises() {
       clearExError(card);
     });
 
-    typeToggle.appendChild(repsBtn);
-    typeToggle.appendChild(timeBtn);
-    card.appendChild(typeToggle);
     card.appendChild(repsFields);
     card.appendChild(timeFields);
 
@@ -666,25 +720,20 @@ function buildRepsFields(i, ex) {
 
   const setsWrap = document.createElement('div');
   setsWrap.className = 'num-input-wrap';
-  const setsLabel = document.createElement('label');
-  setsLabel.textContent = 'Sets';
+  const setsLabel = document.createElement('label'); setsLabel.textContent = 'Sets';
   const setsInput = document.createElement('input');
-  setsInput.type = 'number'; setsInput.min = '1'; setsInput.placeholder = '0';
-  setsInput.value = ex.sets;
+  setsInput.type = 'number'; setsInput.min = '1'; setsInput.placeholder = '0'; setsInput.value = ex.sets;
   setsInput.addEventListener('input', () => { state.modalExercises[i].sets = setsInput.value; });
   setsWrap.appendChild(setsLabel); setsWrap.appendChild(setsInput);
 
   const sep = document.createElement('span');
-  sep.className = 'fields-separator';
-  sep.textContent = '×';
+  sep.className = 'fields-separator'; sep.textContent = '×';
 
   const repsWrap = document.createElement('div');
   repsWrap.className = 'num-input-wrap';
-  const repsLabel = document.createElement('label');
-  repsLabel.textContent = 'Reps';
+  const repsLabel = document.createElement('label'); repsLabel.textContent = 'Reps';
   const repsInput = document.createElement('input');
-  repsInput.type = 'number'; repsInput.min = '1'; repsInput.placeholder = '0';
-  repsInput.value = ex.reps;
+  repsInput.type = 'number'; repsInput.min = '1'; repsInput.placeholder = '0'; repsInput.value = ex.reps;
   repsInput.addEventListener('input', () => { state.modalExercises[i].reps = repsInput.value; });
   repsWrap.appendChild(repsLabel); repsWrap.appendChild(repsInput);
 
@@ -698,11 +747,9 @@ function buildTimeFields(i, ex) {
 
   const minsWrap = document.createElement('div');
   minsWrap.className = 'num-input-wrap';
-  const minsLabel = document.createElement('label');
-  minsLabel.textContent = 'Minutes';
+  const minsLabel = document.createElement('label'); minsLabel.textContent = 'Minutes';
   const minsInput = document.createElement('input');
-  minsInput.type = 'number'; minsInput.min = '1'; minsInput.placeholder = '0';
-  minsInput.value = ex.minutes;
+  minsInput.type = 'number'; minsInput.min = '1'; minsInput.placeholder = '0'; minsInput.value = ex.minutes;
   minsInput.addEventListener('input', () => { state.modalExercises[i].minutes = minsInput.value; });
   minsWrap.appendChild(minsLabel); minsWrap.appendChild(minsInput);
 
@@ -747,17 +794,12 @@ function validateAndSave() {
   }
 
   const cards = document.querySelectorAll('#modal-exercises .exercise-card');
-
   state.modalExercises.forEach((ex, i) => {
     const card = cards[i];
     if (!card) return;
     clearExError(card);
 
-    if (!ex.name.trim()) {
-      setExError(card, 'Exercise name is required.');
-      valid = false;
-      return;
-    }
+    if (!ex.name.trim()) { setExError(card, 'Exercise name is required.');       valid = false; return; }
     if (ex.type === 'reps') {
       if (!isPositiveInt(ex.sets)) { setExError(card, 'Sets must be a positive integer.');  valid = false; return; }
       if (!isPositiveInt(ex.reps)) { setExError(card, 'Reps must be a positive integer.');  valid = false; return; }
@@ -770,16 +812,19 @@ function validateAndSave() {
 
   const exercises = state.modalExercises.map(ex =>
     ex.type === 'reps'
-      ? { name: ex.name.trim(), type: 'reps', sets: parseInt(ex.sets), reps: parseInt(ex.reps), duration: 0 }
-      : { name: ex.name.trim(), type: 'time', sets: 1, reps: 0, minutes: parseInt(ex.minutes), duration: parseInt(ex.minutes) * 60 }
+      ? { name: ex.name.trim(), type: 'reps', sets: parseInt(ex.sets), reps: parseInt(ex.reps), duration: 0, muscleGroup: ex.muscleGroup }
+      : { name: ex.name.trim(), type: 'time', sets: 1, reps: 0, minutes: parseInt(ex.minutes), duration: parseInt(ex.minutes) * 60, muscleGroup: ex.muscleGroup }
   );
 
-  const workouts = getWorkouts();
+  const workoutName  = document.getElementById('modal-workout-name').value.trim();
+  const warmup       = document.getElementById('modal-warmup').checked;
+  const stretching   = document.getElementById('modal-stretching').checked;
+  const workouts     = getWorkouts();
 
   if (state.editingWorkoutId) {
     const idx = workouts.findIndex(w => w.id === state.editingWorkoutId);
     if (idx >= 0) {
-      workouts[idx] = { ...workouts[idx], date: state.modalDate, exercises };
+      workouts[idx] = { ...workouts[idx], name: workoutName, date: state.modalDate, warmup, stretching, exercises };
     }
     saveWorkouts(workouts);
     closeModal();
@@ -787,9 +832,12 @@ function validateAndSave() {
     showToast('Workout updated.');
   } else {
     workouts.push({
-      id:        generateId(),
-      date:      state.modalDate,
-      timestamp: new Date().toISOString(),
+      id:         generateId(),
+      name:       workoutName,
+      date:       state.modalDate,
+      timestamp:  new Date().toISOString(),
+      warmup,
+      stretching,
       exercises,
     });
     saveWorkouts(workouts);
@@ -811,6 +859,15 @@ function bindAllEvents() {
     if (e.target === e.currentTarget) closeModal();
   });
 
+  // Delete workout from within the edit modal
+  document.getElementById('btn-delete-workout').addEventListener('click', () => {
+    if (state.editingWorkoutId) {
+      deleteWorkout(state.editingWorkoutId);
+      closeModal();
+    }
+  });
+
+  // Date field
   const dateTextEl   = document.getElementById('modal-date-text');
   const datePickerEl = document.getElementById('modal-date-picker');
   const dateError    = document.getElementById('date-error');
@@ -847,13 +904,12 @@ function bindAllEvents() {
   });
 
   document.getElementById('btn-add-exercise').addEventListener('click', () => {
-    state.modalExercises.push({ id: generateId(), name: '', type: 'reps', sets: '', reps: '', minutes: '' });
+    state.modalExercises.push({ id: generateId(), name: '', type: 'reps', sets: '', reps: '', minutes: '', muscleGroup: '' });
     renderModalExercises();
   });
 
   document.getElementById('btn-save-workout').addEventListener('click', validateAndSave);
 
-  // Bulk bar
   document.getElementById('btn-bulk-delete').addEventListener('click', bulkDelete);
   document.getElementById('btn-bulk-clear').addEventListener('click', clearSelection);
 }

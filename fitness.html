@@ -39,6 +39,14 @@
 
         <div class="modal-body">
 
+          <!-- Workout name -->
+          <div class="form-group">
+            <label class="field-label" for="modal-workout-name">Workout Name</label>
+            <input type="text" id="modal-workout-name" class="modal-name-input"
+                   placeholder="e.g. Push Day, Leg Day…" autocomplete="off">
+          </div>
+
+          <!-- Date -->
           <div class="form-group">
             <label class="field-label">Date</label>
             <div class="date-input-wrap">
@@ -58,6 +66,20 @@
             <span class="field-error" id="date-error"></span>
           </div>
 
+          <!-- Session extras: Warm-up & Stretching -->
+          <div class="form-group">
+            <label class="field-label">Session</label>
+            <div class="check-options-row">
+              <label class="check-option">
+                <input type="checkbox" id="modal-warmup"> Warm-up
+              </label>
+              <label class="check-option">
+                <input type="checkbox" id="modal-stretching"> Stretching
+              </label>
+            </div>
+          </div>
+
+          <!-- Exercises -->
           <div class="form-group">
             <label class="field-label">Exercises</label>
             <div id="modal-exercises"></div>
@@ -67,8 +89,11 @@
         </div>
 
         <div class="modal-footer">
-          <button id="btn-modal-cancel" class="btn-ghost">Cancel</button>
-          <button id="btn-save-workout" class="btn-primary">Save Workout</button>
+          <button id="btn-delete-workout" class="btn-danger hidden" type="button">Delete Workout</button>
+          <div class="modal-footer-right">
+            <button id="btn-modal-cancel" class="btn-ghost">Cancel</button>
+            <button id="btn-save-workout" class="btn-primary">Save Workout</button>
+          </div>
         </div>
 
       </div>
