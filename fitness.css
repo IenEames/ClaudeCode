@@ -145,37 +145,220 @@ header {
 
 .date-header:first-child { padding-top: 0; }
 
-.exercise-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.8rem 0.5rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: 4px;
-  transition: background var(--transition);
-}
-
-.exercise-row:hover { background: rgba(255, 255, 255, 0.04); }
-
-.ex-name {
-  font-size: 0.95rem;
-  font-weight: 500;
-  color: var(--text-primary);
-}
-
-.ex-detail {
-  font-size: 0.875rem;
-  color: var(--text-secondary);
-  flex-shrink: 0;
-  margin-left: 1rem;
-}
-
 .empty-state {
   color: var(--text-secondary);
   font-size: 0.95rem;
   text-align: center;
   padding: 4rem 0;
 }
+
+/* ==================== WORKOUT CARDS ==================== */
+.workout-card {
+  border-radius: var(--radius);
+  margin-bottom: 2px;
+  transition: background var(--transition);
+}
+
+.workout-card.is-selected { background: rgba(29, 185, 84, 0.07); }
+
+.workout-card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.65rem 0.5rem;
+  border-radius: var(--radius);
+  transition: background var(--transition);
+}
+
+.workout-card-header:hover { background: rgba(255, 255, 255, 0.04); }
+
+.workout-checkbox {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--accent);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.workout-summary {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.workout-ex-count {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.workout-time {
+  font-size: 0.8rem;
+  color: var(--text-subdued);
+  white-space: nowrap;
+}
+
+.workout-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.1rem;
+  flex-shrink: 0;
+}
+
+.btn-icon-action {
+  background: none;
+  border: none;
+  padding: 0.3rem 0.45rem;
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--text-subdued);
+  font-size: 0.85rem;
+  line-height: 1;
+  transition: all var(--transition);
+}
+
+.btn-icon-action:hover               { color: var(--text-primary); background: rgba(255,255,255,0.08); }
+.btn-icon-action.danger:hover        { color: var(--danger-light); background: rgba(226,33,52,0.1); }
+.btn-icon-action.expand-btn          { font-size: 0.6rem; letter-spacing: -1px; }
+.btn-icon-action.expand-btn.open     { color: var(--accent); }
+
+/* ==================== EXERCISE ROWS (inside expanded card) ==================== */
+.workout-card-body {
+  padding: 0.15rem 0.5rem 0.6rem 2.3rem;
+}
+
+.exercise-row {
+  display: flex;
+  align-items: center;
+  padding: 0.55rem 0.4rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 4px;
+  gap: 0.5rem;
+  transition: background var(--transition);
+}
+
+.exercise-row:hover { background: rgba(255, 255, 255, 0.04); }
+
+.exercise-row:hover .exercise-row-actions { opacity: 1; }
+
+.ex-name {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ex-detail {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.exercise-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.1rem;
+  opacity: 0;
+  transition: opacity var(--transition);
+  flex-shrink: 0;
+}
+
+/* ==================== INLINE EDIT FORM ==================== */
+.inline-edit-form {
+  background: var(--bg-elevated);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 0.85rem;
+  margin: 0.25rem 0 0.5rem;
+}
+
+.inline-name-input {
+  width: 100%;
+  padding: 0.5rem 0.65rem;
+  background: var(--bg-highlight);
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  font-family: inherit;
+  margin-bottom: 0.6rem;
+  transition: border-color var(--transition);
+}
+
+.inline-name-input:focus        { outline: none; border-color: var(--accent); }
+.inline-name-input::placeholder { color: var(--text-subdued); }
+
+.inline-edit-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.6rem;
+}
+
+.inline-edit-footer .btn-ghost   { font-size: 0.8rem; padding: 0.35rem 0.75rem; }
+.inline-edit-footer .btn-primary { font-size: 0.8rem; padding: 0.35rem 0.9rem; }
+
+/* ==================== BULK ACTION BAR ==================== */
+.bulk-bar {
+  position: fixed;
+  bottom: 1.75rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg-elevated);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 500px;
+  padding: 0.55rem 0.65rem 0.55rem 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  z-index: 50;
+  box-shadow: 0 4px 28px rgba(0, 0, 0, 0.6);
+  white-space: nowrap;
+  animation: slideUp 0.2s ease;
+}
+
+@keyframes slideUp {
+  from { transform: translateX(-50%) translateY(12px); opacity: 0; }
+  to   { transform: translateX(-50%) translateY(0);   opacity: 1; }
+}
+
+#bulk-count {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.bulk-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.bulk-actions .btn-ghost {
+  font-size: 0.8rem;
+  padding: 0.35rem 0.75rem;
+}
+
+.btn-danger {
+  padding: 0.4rem 1rem;
+  background: var(--danger);
+  border: none;
+  border-radius: 500px;
+  color: #fff;
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background var(--transition);
+}
+
+.btn-danger:hover { background: var(--danger-light); }
 
 /* ==================== MODAL ==================== */
 .modal-overlay {

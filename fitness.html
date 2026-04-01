@@ -19,12 +19,21 @@
       <div id="workout-history"></div>
     </main>
 
-    <!-- Add Workout Modal -->
+    <!-- Bulk action bar (shown when workouts are selected) -->
+    <div id="bulk-bar" class="bulk-bar hidden">
+      <span id="bulk-count"></span>
+      <div class="bulk-actions">
+        <button id="btn-bulk-clear" class="btn-ghost">Clear</button>
+        <button id="btn-bulk-delete" class="btn-danger">Delete selected</button>
+      </div>
+    </div>
+
+    <!-- Add / Edit Workout Modal -->
     <div id="modal-overlay" class="modal-overlay hidden">
       <div class="modal-dialog" role="dialog" aria-modal="true">
 
         <div class="modal-header">
-          <h2 class="modal-title">Add Workout</h2>
+          <h2 class="modal-title" id="modal-title">Add Workout</h2>
           <button id="btn-modal-close" class="btn-icon-close" aria-label="Close">✕</button>
         </div>
 
